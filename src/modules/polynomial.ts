@@ -111,3 +111,29 @@ export const makeEvaluator: MakeEvaluatorFunction = p => x =>
     chain(evaluate)
   )
 //#endregion
+
+//#region Printing
+
+export const printLaTex = (p: Polynomial): Either<Error, string> => {
+  const factor = (index: number, exponent: number, degree: number): string =>
+    exponent > 0
+      ? "x" +
+        (degree > 1 ? "_" + (index + 1).toString() : "") +
+        (exponent > 1 ? "^" + exponent.toString() : "")
+      : ""
+  return right(
+    p.terms.reduce(
+      (latex: string, term: Term, index: number) =>
+        `${latex}${index > 0 ? " + " : ""}${
+          term.coefficient !== 1 ? term.coefficient : ""
+        }${term.exponents.reduce(
+          (factors: string, exponent: number, index: number): string =>
+            factors + factor(index, exponent, p.degree),
+          ""
+        )}`,
+      ""
+    )
+  )
+}
+
+//#endregion
