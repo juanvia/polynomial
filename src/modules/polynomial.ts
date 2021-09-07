@@ -39,14 +39,22 @@ const exponentsDegreeOk = (p: Polynomial): Either<Error, Polynomial> =>
     ? right(p)
     : left(
         new Error(
-          `There is at least one term whose exponents sum is greater than the polynomial degree ${p.degree}`
+          `There is in polynomial ${JSON.stringify(
+            p
+          )} at least one term whose exponents sum is greater than the polynomial degree ${
+            p.degree
+          }`
         )
       )
 
 const hasValues = (p: Polynomial): Either<Error, Polynomial> =>
   p.values && Array.isArray(p.values) && p.values.length === p.dimension
     ? right(p)
-    : left(new Error(`The polynomial has no valid values to evaluate`))
+    : left(
+        new Error(
+          `The polynomial ${JSON.stringify(p)} has no valid values to evaluate`
+        )
+      )
 
 const addValues = (
   p: Polynomial,
@@ -83,16 +91,17 @@ export const evaluate = (p: Polynomial): Either<Error, number> => {
       )
     )
   } catch (error) {
-    if (error instanceof Error) return left(error)
-    if (typeof error === "string") return left(new Error(error))
-    else
-      return left(
-        new Error(
-          `Error evaluating polynomial ${JSON.stringify(
-            p
-          )} using value ${JSON.stringify(p.values)}`
-        )
-      )
+    return left(
+      error instanceof Error
+        ? error
+        : typeof error === "string"
+        ? new Error(error)
+        : new Error(
+            `Error evaluating polynomial ${JSON.stringify(
+              p
+            )} using value ${JSON.stringify(p.values)}`
+          )
+    )
   }
 }
 
