@@ -1,5 +1,9 @@
-import { right, left, chain, Either } from "fp-ts/lib/Either"
+import { number } from "fp-ts"
+import { right, left, chain, Either, fold } from "fp-ts/lib/Either"
+import { identity } from "fp-ts/lib/function"
 import { pipe } from "fp-ts/lib/pipeable"
+
+const js = JSON.stringify
 
 //#region Types
 
@@ -32,46 +36,26 @@ const exponentsDegreeOk = (p: Polynomial): Either<Error, Polynomial> =>
   Math.max(
     ...p.terms
       .map(term => term.exponents)
-      .map(exponentList =>
-        exponentList.reduce((exponentsSum, exp) => exponentsSum + exp, 0)
-      )
+      .map(xs => xs.reduce((sum, another) => sum + another, 0))
   ) <= p.degree
     ? right(p)
-    : left(
-        new Error(
-          `There is in polynomial ${JSON.stringify(
-            p
-          )} at least one term whose exponents sum is greater than the polynomial degree ${
-            p.degree
-          }`
-        )
-      )
+    : left(new Error(`${js(p)}: terms degree is greater than polynomial degree ${p.degree}`))
 
 const hasValues = (p: Polynomial): Either<Error, Polynomial> =>
   p.values && Array.isArray(p.values) && p.values.length === p.dimension
     ? right(p)
-    : left(
-        new Error(
-          `The polynomial ${JSON.stringify(p)} has no valid values to evaluate`
-        )
-      )
+    : left(new Error(`The polynomial ${js(p)} has no valid values to evaluate`))
 
-const addValues = (
-  p: Polynomial,
-  values: Array<number> | number
-): Either<Error, Polynomial> => {
+const addValues = (p: Polynomial, values: Array<number> | number): Either<Error, Polynomial> => {
   const x = Array.isArray(values) ? values : [values]
-  if (x.length !== p.dimension)
-    return left(
-      new Error(
-        `Cannot add values ${JSON.stringify(x)} to polynomial ${JSON.stringify(
-          p
-        )} (see dimension property)`
-      )
-    )
-  return right({ ...p, values: x })
+  return x.length !== p.dimension
+    ? left(new Error(`Cannot add values ${js(x)} to polynomial ${js(p)}`))
+    : right({ ...p, values: x })
 }
 
+/**
+ * Evaluate a Polynomial with given values
+ */
 export const evaluate = (p: Polynomial): Either<Error, number> => {
   try {
     return right(
@@ -96,40 +80,44 @@ export const evaluate = (p: Polynomial): Either<Error, number> => {
         ? error
         : typeof error === "string"
         ? new Error(error)
-        : new Error(
-            `Error evaluating polynomial ${JSON.stringify(
-              p
-            )} using value ${JSON.stringify(p.values)}`
-          )
+        : new Error(`Error evaluating polynomial ${js(p)} using value ${js(p.values)}`)
     )
   }
 }
 
-export type EvaluatorFunction = (
-  x: number | Array<number>
-) => Either<Error, number>
+export type EitherlyEvaluatorFunction = (x: number | Array<number>) => Either<Error, number>
+export type MakeEitherlyEvaluatorFunction = (p: Polynomial) => EitherlyEvaluatorFunction
 
+export type EvaluatorFunction = (x: number | Array<number>) => number
 export type MakeEvaluatorFunction = (p: Polynomial) => EvaluatorFunction
 
-export const makeEvaluator: MakeEvaluatorFunction = p => x =>
+const thrower = (e: Error) => {
+  throw e
+}
+
+export const makeEitherlyEvaluator: MakeEitherlyEvaluatorFunction = polynomial => values =>
   pipe(
-    addValues(p, x),
+    addValues(polynomial, values),
     chain(hasValues),
     chain(exponentsDimensionOk),
     chain(exponentsDegreeOk),
     chain(evaluate)
   )
+export const makeEvaluator: MakeEvaluatorFunction = p => x =>
+  pipe(x, makeEitherlyEvaluator(p), fold(thrower, identity))
 //#endregion
 
 //#region Printing
 
 export const printLaTex = (p: Polynomial): Either<Error, string> => {
+  const mayBeSubindex = (index: number, degree: number): string =>
+    degree > 1 ? `_${index + 1}` : ""
+
+  const mayBeExponent = (exponent: number): string => (exponent > 1 ? `^${exponent}` : ``)
+
   const factor = (index: number, exponent: number, degree: number): string =>
-    exponent > 0
-      ? "x" +
-        (degree > 1 ? "_" + (index + 1).toString() : "") +
-        (exponent > 1 ? "^" + exponent.toString() : "")
-      : ""
+    exponent > 0 ? `x${mayBeSubindex(index, degree)}${mayBeExponent(exponent)}` : ``
+
   return right(
     p.terms.reduce(
       (latex: string, term: Term, index: number) =>

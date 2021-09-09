@@ -4,6 +4,7 @@ import clear from "clear"
 import figlet from "figlet"
 import path from "path"
 import { Polynomial, makeEvaluator, printLaTex } from "./modules/polynomial"
+import makeExponentsArray from './modules/exponents'
 
 clear()
 console.log(
@@ -21,6 +22,7 @@ const example: Polynomial = {
 
 console.log(makeEvaluator(example)([2, 1, 1]))
 console.log(printLaTex(example))
+console.log(makeExponentsArray(3,4))
 // https://js.tensorflow.org/api/latest/#linalg.qr
 // https://github.com/samhh/fp-ts-std/blob/master/docs/ramda-comparison.md
 
