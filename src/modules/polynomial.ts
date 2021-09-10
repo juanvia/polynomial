@@ -51,20 +51,6 @@ const addValues = (p: Polynomial, values: Array<number> | number): Either<Error,
     : right({ ...p, values: x })
 }
 
-export const transformToComplete = (p: Polynomial): Either<Error, Polynomial> => {
-  return p.degree > 9
-    ? left(new Error(`Degree ${p.degree} is too big (max allowed is 9)`))
-    : p.dimension > 5
-    ? left(new Error(`Dimension ${p.dimension} is too big (max allowed is 5)`))
-    : right({
-        ...p,
-        terms: makeExponentsArray(p.dimension, p.degree).map(exponents => ({
-          coefficient: 1,
-          exponents,
-        })),
-      })
-}
-
 /**
  * Evaluate a Polynomial with given values
  */
@@ -119,9 +105,27 @@ export const makeEvaluator: MakeEvaluatorFunction = p => x =>
   pipe(x, makeEitherlyEvaluator(p), fold(thrower, identity))
 //#endregion
 
+//#region Transform to complete
+export const eitherlyTransformToComplete = (p: Polynomial): Either<Error, Polynomial> => {
+  return p.degree > 9
+    ? left(new Error(`Degree ${p.degree} is too big (max allowed is 9)`))
+    : p.dimension > 5
+    ? left(new Error(`Dimension ${p.dimension} is too big (max allowed is 5)`))
+    : right({
+        ...p,
+        terms: makeExponentsArray(p.dimension, p.degree).map(exponents => ({
+          coefficient: 1,
+          exponents,
+        })),
+      })
+}
+export const transformToComplete = (p: Polynomial): Polynomial =>
+  pipe(p, eitherlyTransformToComplete, fold(thrower, identity))
+//#endregion
+
 //#region Printing
 
-export const printLaTex = (p: Polynomial): Either<Error, string> => {
+export const eitherlyToLatexString = (p: Polynomial): Either<Error, string> => {
   const mayBeSubindex = (index: number, degree: number): string =>
     degree > 1 ? `_${index + 1}` : ""
 
@@ -134,7 +138,9 @@ export const printLaTex = (p: Polynomial): Either<Error, string> => {
     p.terms.reduce(
       (latex: string, term: Term, index: number) =>
         `${latex}${index > 0 ? " + " : ""}${
-          (term.coefficient !== 1 || term.exponents.reduce((a,b)=>a+b) === 0) ? term.coefficient : ""
+          term.coefficient !== 1 || term.exponents.reduce((a, b) => a + b) === 0
+            ? term.coefficient
+            : ""
         }${term.exponents.reduce(
           (factors: string, exponent: number, index: number): string =>
             factors + factor(index, exponent, p.degree),
@@ -144,5 +150,7 @@ export const printLaTex = (p: Polynomial): Either<Error, string> => {
     )
   )
 }
+export const toLatexString = (p: Polynomial): string =>
+  pipe(p, eitherlyToLatexString, fold(thrower, identity))
 
 //#endregion

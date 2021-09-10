@@ -1,7 +1,5 @@
 #!/usr/bin/env node
-import { Polynomial, makeEvaluator, printLaTex, transformToComplete } from "./modules/polynomial"
-import { fold } from "fp-ts/lib/Either"
-import { pipe } from "fp-ts/lib/pipeable"
+import { Polynomial, makeEvaluator, toLatexString, transformToComplete } from "./modules/polynomial"
 const example: Polynomial = {
   dimension: 3,
   degree: 2,
@@ -12,18 +10,8 @@ const example: Polynomial = {
   ],
 }
 
-const thrower = (e: Error) => {
-  throw e
-}
-
 console.log(makeEvaluator(example)([2, 1, 1]))
-console.log(
-  pipe(
-    example,
-    transformToComplete,
-    fold(thrower, printLaTex)
-  )
-)
+console.log(toLatexString(transformToComplete(example)))
 
 // https://js.tensorflow.org/api/latest/#linalg.qr
 // https://github.com/samhh/fp-ts-std/blob/master/docs/ramda-comparison.md
