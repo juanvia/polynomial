@@ -12,13 +12,41 @@ export type Term = {
   exponents: Array<number>
 }
 
+export type PolynomialConfiguration = {
+  coefficientNames?: Array<string>
+}
+
 export type Polynomial = {
   dimension: number
   degree: number
   values: Array<number>
   terms: Array<Term>
+  configuration?: PolynomialConfiguration
 }
 
+export type EvaluatorFunction = (x: number | Array<number>) => number
+export type MakeEvaluatorFunction = (p: Polynomial) => EvaluatorFunction
+
+export type EitherlyEvaluatorFunction = (x: number | Array<number>) => Either<Error, number>
+export type MakeEitherlyEvaluatorFunction = (p: Polynomial) => EitherlyEvaluatorFunction
+//#endregion
+
+//#region make
+
+export const make = (dimension: number, degree: number): Polynomial => ({
+  dimension,
+  degree,
+  values: [],
+  terms: [],
+  configuration: {},
+})
+
+//#endregion
+
+//#region Helpers (thrower)
+const thrower = (e: Error) => {
+  throw e
+}
 //#endregion
 
 //#region Evaluation
@@ -83,16 +111,6 @@ export const evaluate = (p: Polynomial): Either<Error, number> => {
   }
 }
 
-export type EitherlyEvaluatorFunction = (x: number | Array<number>) => Either<Error, number>
-export type MakeEitherlyEvaluatorFunction = (p: Polynomial) => EitherlyEvaluatorFunction
-
-export type EvaluatorFunction = (x: number | Array<number>) => number
-export type MakeEvaluatorFunction = (p: Polynomial) => EvaluatorFunction
-
-const thrower = (e: Error) => {
-  throw e
-}
-
 export const makeEitherlyEvaluator: MakeEitherlyEvaluatorFunction = polynomial => values =>
   pipe(
     addValues(polynomial, values),
@@ -106,6 +124,7 @@ export const makeEvaluator: MakeEvaluatorFunction = p => x =>
 //#endregion
 
 //#region Transform to complete
+
 export const eitherlyTransformToComplete = (p: Polynomial): Either<Error, Polynomial> => {
   return p.degree > 9
     ? left(new Error(`Degree ${p.degree} is too big (max allowed is 9)`))
@@ -121,6 +140,7 @@ export const eitherlyTransformToComplete = (p: Polynomial): Either<Error, Polyno
 }
 export const transformToComplete = (p: Polynomial): Polynomial =>
   pipe(p, eitherlyTransformToComplete, fold(thrower, identity))
+
 //#endregion
 
 //#region Printing
