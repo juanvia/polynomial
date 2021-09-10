@@ -1,7 +1,7 @@
-import { number } from "fp-ts"
 import { right, left, chain, Either, fold } from "fp-ts/lib/Either"
 import { identity } from "fp-ts/lib/function"
 import { pipe } from "fp-ts/lib/pipeable"
+import { makeExponentsArray } from "./exponents"
 
 const js = JSON.stringify
 
@@ -15,7 +15,7 @@ export type Term = {
 export type Polynomial = {
   dimension: number
   degree: number
-  values?: Array<number>
+  values: Array<number>
   terms: Array<Term>
 }
 
@@ -34,9 +34,7 @@ const exponentsDimensionOk = (p: Polynomial): Either<Error, Polynomial> =>
 
 const exponentsDegreeOk = (p: Polynomial): Either<Error, Polynomial> =>
   Math.max(
-    ...p.terms
-      .map(term => term.exponents)
-      .map(xs => xs.reduce((sum, another) => sum + another, 0))
+    ...p.terms.map(term => term.exponents).map(xs => xs.reduce((sum, another) => sum + another, 0))
   ) <= p.degree
     ? right(p)
     : left(new Error(`${js(p)}: terms degree is greater than polynomial degree ${p.degree}`))
@@ -51,6 +49,20 @@ const addValues = (p: Polynomial, values: Array<number> | number): Either<Error,
   return x.length !== p.dimension
     ? left(new Error(`Cannot add values ${js(x)} to polynomial ${js(p)}`))
     : right({ ...p, values: x })
+}
+
+export const transformToComplete = (p: Polynomial): Either<Error, Polynomial> => {
+  return p.degree > 9
+    ? left(new Error(`Degree ${p.degree} is too big (max allowed is 9)`))
+    : p.dimension > 5
+    ? left(new Error(`Dimension ${p.dimension} is too big (max allowed is 5)`))
+    : right({
+        ...p,
+        terms: makeExponentsArray(p.dimension, p.degree).map(exponents => ({
+          coefficient: 1,
+          exponents,
+        })),
+      })
 }
 
 /**
@@ -68,7 +80,7 @@ export const evaluate = (p: Polynomial): Either<Error, number> => {
           term.coefficient *
             term.exponents.reduce(
               (termProduct: number, exponent: number, index: number): number =>
-                termProduct * p.values![index] ** exponent,
+                termProduct * p.values[index] ** exponent,
               1
             ),
         0
@@ -122,7 +134,7 @@ export const printLaTex = (p: Polynomial): Either<Error, string> => {
     p.terms.reduce(
       (latex: string, term: Term, index: number) =>
         `${latex}${index > 0 ? " + " : ""}${
-          term.coefficient !== 1 ? term.coefficient : ""
+          (term.coefficient !== 1 || term.exponents.reduce((a,b)=>a+b) === 0) ? term.coefficient : ""
         }${term.exponents.reduce(
           (factors: string, exponent: number, index: number): string =>
             factors + factor(index, exponent, p.degree),

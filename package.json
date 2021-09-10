@@ -22,12 +22,14 @@
     "commander": "^8.1.0",
     "figlet": "^1.5.2",
     "fp-ts": "^2.11.1",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "ramda": "^0.27.1"
   },
   "devDependencies": {
     "@types/clear": "^0.1.2",
     "@types/figlet": "^1.5.4",
     "@types/node": "^16.7.8",
+    "@types/ramda": "^0.27.44",
     "@typescript-eslint/eslint-plugin": "^4.31.0",
     "@typescript-eslint/parser": "^4.31.0",
     "eslint": "^7.32.0",

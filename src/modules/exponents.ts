@@ -1,4 +1,4 @@
-import { concat, sort, sum, takeLast, reduce, add, map, pipe, split, join } from 'ramda'
+import { repeat, sort, sum, reduce, add, } from 'ramda'
 
 /**
  * Helper for sorting the result
@@ -15,23 +15,6 @@ const relevance = (row: number[]): number => {
  * @param b Second element
  */
 const byRelevance = (a: number[], b: number[]): number => relevance(b) - relevance(a)
-
-/**
- * Delivers an array of given size of digits of given number expressed in given base
- * 
- * @param size The digits number of the result (It'll be zero left padding if necessary)
- * @param base The base at wich the number will be expressed
- * @param value The input integer number
- */
-const transform = (size: number, base: number, value: number): number[] => pipe(
-
-  concat(join('', repeat('0', size))),  // ensure enough length for next step
-  takeLast(size),                     // the length must equals the value of the "size" variable
-  split(''),                          // transforms the number string representation to an array of chars
-  map(Number)                         // array of chars to array of numbers (one digit each)
-
-)(value.toString(base))              // send to pipe the number in <base>ary form
-
 
 
 
@@ -63,43 +46,15 @@ const transform = (size: number, base: number, value: number): number[] => pipe(
  *
  */
 
-
-
-
- // =====================================================================================
- // FUNCTIONAL VERSION, MORE MESSY, A LOT SLOWER
-
-// const takeValidPoints = (dimensions: number, totalDegree: number): number[][] => {
-
-//   const allPossibleValues: number[] = Array(totalDegree + 1).fill(0).map((v, i) => i)
-
-//   const appendAnotherDimension = (totalDegree: number, points: number[][]): number[][] =>
-//     points.reduce((result: number[][], point: number[]) =>
-//       result.concat(allPossibleValues.map(value => point.concat([value])))
-//       , [])
-
-//   // Initialize the list of valid points to empty
-//   let points: number[][] = [[]]
-
-//   for (let dim = 1; dim <= dimensions; ++dim) {
-//     points = appendAnotherDimension(totalDegree, points)
-//   }
-
-//   return points.filter(point => point.reduce(add, 0) <= totalDegree)
-
-// }
- // =====================================================================================
-
 const takeValidPoints = (dimensions: number, totalDegree: number): number[][] => {
 
   
   const appendAnotherDimension = (totalDegree: number, oldSpacePoints: number[][]): number[][] => {
-    console.log('coso')
     
     // Append one more dimension replacing each point with (totalDegree+1) new dimensions points
     
-    let newSpacePoints: number[][] = []
-    
+    const newSpacePoints: number[][] = []
+
     oldSpacePoints.forEach(seedPoint => {
       
       // use all possible values to generate new points
@@ -108,8 +63,6 @@ const takeValidPoints = (dimensions: number, totalDegree: number): number[][] =>
         
     })
     
-    console.log({totalDegree,oldSpacePoints,newSpacePoints})
-
     return newSpacePoints
   
   }
@@ -150,7 +103,7 @@ export const makeExponentsArray = (dimensions: number, degree: number): number[]
   }
 
   // Gathering the points whose sum of elements is less or equal to the given degree
-  let stack = takeValidPoints(dimensions, degree)
+  const stack = takeValidPoints(dimensions, degree)
 
   // On delivery be polite and give a neat, ordered list
   return sort(byRelevance, stack)
