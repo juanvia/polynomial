@@ -7,11 +7,12 @@
     "some": "./lib/index.js"
   },
   "scripts": {
-    "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+    "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' scripts/index.ts",
     "create": "yarn build && yarn test",
     "build": "tsc -p .",
     "local": "sudo npm i -g && some",
-    "refresh": "rm -rf ./node_modules ./yarn.lock && yarn"
+    "refresh": "rm -rf ./node_modules ./yarn.lock && yarn",
+    "test": "ts-node test"
   },
   "author": "Juan V. Vía",
   "license": "MIT",
@@ -30,6 +31,7 @@
     "@types/ramda": "^0.27.44",
     "@typescript-eslint/eslint-plugin": "^4.31.0",
     "@typescript-eslint/parser": "^4.31.0",
+    "@xaviervia/micro-snapshots": "^0.0.5",
     "eslint": "^7.32.0",
     "nodemon": "^2.0.12",
     "ts-node": "^10.2.1",
