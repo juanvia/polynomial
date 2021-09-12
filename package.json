@@ -17,10 +17,8 @@
   "license": "MIT",
   "private": true,
   "dependencies": {
+    "@tensorflow/tfjs": "^3.9.0",
     "chalk": "^4.1.2",
-    "clear": "^0.1.0",
-    "commander": "^8.1.0",
-    "figlet": "^1.5.2",
     "fp-ts": "^2.11.1",
     "path": "^0.12.7",
     "ramda": "^0.27.1"
