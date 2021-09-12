@@ -1,4 +1,3 @@
-
 //#region Types
 export type HSLColor = {
   system: "hsl"
