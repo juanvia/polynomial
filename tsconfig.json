@@ -4,17 +4,12 @@
     "lib": ["esnext"],
     "declaration": true,
     "outDir": "lib",
-    "rootDir": "src",
+    "rootDir": ".",
     "strict": true,
     "types": ["node"],
     "esModuleInterop": true,
-<<<<<<< HEAD
     "resolveJsonModule": true,
     "skipLibCheck": true
-  }
-=======
-    "resolveJsonModule": true
   },
-  "exclude": ["test"]
->>>>>>> 7e83acdae9f894378f95000c01689098f770573c
+  "exclude": ["test","lib"]
 }

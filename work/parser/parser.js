@@ -1,7 +1,6 @@
 import fs from 'fs'
 import parser from "node-html-parser"
 const { parse } = parser
-
 const root = parse(fs.readFileSync('./color.html'))
 
 const webColors = root.querySelectorAll('tr').map((tr,index) => {
@@ -13,3 +12,4 @@ const webColors = root.querySelectorAll('tr').map((tr,index) => {
 })
 
 console.log(JSON.stringify(webColors))
+
