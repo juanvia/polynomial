@@ -22,7 +22,8 @@
     "fp-ts": "^2.11.1",
     "fp-ts-contrib": "^0.1.26",
     "path": "^0.12.7",
-    "ramda": "^0.27.1"
+    "ramda": "^0.27.1",
+    "@juanvia/matrix": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^16.7.8",
