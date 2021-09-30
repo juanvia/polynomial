@@ -1,176 +1,131 @@
-import { right, left, chain, Either, fold } from "fp-ts/lib/Either"
-import { identity } from "fp-ts/lib/function"
-import { pipe } from "fp-ts/lib/pipeable"
 import { makeExponentsArray } from "./exponents"
+import { Matrix, makeEmptyMatrix, appendRow, get, row, makeRowVector, tr, solve } from "@juanvia/matrix"
 
 const js = JSON.stringify
 
-//#region Types
-
 export type Term = {
-  coefficient: number
+  coefficient: number | undefined
   exponents: Array<number>
-}
-
-export type PolynomialConfiguration = {
-  coefficientNames?: Array<string>
 }
 
 export type Polynomial = {
   dimension: number
   degree: number
-  values: Array<number>
   terms: Array<Term>
-  configuration?: PolynomialConfiguration
+  coefficientNames?: Array<string>
 }
 
-export type EvaluatorFunction = (x: number | Array<number>) => number
-export type MakeEvaluatorFunction = (p: Polynomial) => EvaluatorFunction
-
-export type EitherlyEvaluatorFunction = (x: number | Array<number>) => Either<Error, number>
-export type MakeEitherlyEvaluatorFunction = (p: Polynomial) => EitherlyEvaluatorFunction
-//#endregion
-
-//#region make
-
-export const make = (dimension: number, degree: number): Polynomial => ({
-  dimension,
-  degree,
-  values: [],
-  terms: [],
-  configuration: {},
-})
-
-//#endregion
-
-//#region Helpers (thrower)
-const thrower = (e: Error) => {
-  throw e
-}
-//#endregion
-
-//#region Evaluation
-
-const exponentsDimensionOk = (p: Polynomial): Either<Error, Polynomial> =>
-  p.terms.every(term => term.exponents.length === p.dimension)
-    ? right(p)
-    : left(
-        new Error(
-          `Some term has its exponents list length not equal to the polynomial dimension (${p.dimension})`
-        )
-      )
-
-const exponentsDegreeOk = (p: Polynomial): Either<Error, Polynomial> =>
-  Math.max(
-    ...p.terms.map(term => term.exponents).map(xs => xs.reduce((sum, another) => sum + another, 0))
-  ) <= p.degree
-    ? right(p)
-    : left(new Error(`${js(p)}: terms degree is greater than polynomial degree ${p.degree}`))
-
-const hasValues = (p: Polynomial): Either<Error, Polynomial> =>
-  p.values && Array.isArray(p.values) && p.values.length === p.dimension
-    ? right(p)
-    : left(new Error(`The polynomial ${js(p)} has no valid values to evaluate`))
-
-const addValues = (p: Polynomial, values: Array<number> | number): Either<Error, Polynomial> => {
-  const x = Array.isArray(values) ? values : [values]
-  return x.length !== p.dimension
-    ? left(new Error(`Cannot add values ${js(x)} to polynomial ${js(p)}`))
-    : right({ ...p, values: x })
-}
-
-/**
- * Evaluate a Polynomial with given values
- */
-export const evaluate = (p: Polynomial): Either<Error, number> => {
-  try {
-    return right(
-      // A polynomial is a sum of terms
-      p.terms.reduce(
-        (polynomialSum: number, term: Term): number =>
-          polynomialSum +
-          // A term is a product of coefficient and powers of
-          // evaluated variables
-          term.coefficient *
-            term.exponents.reduce(
-              (termProduct: number, exponent: number, index: number): number =>
-                termProduct * p.values[index] ** exponent,
-              1
-            ),
-        0
-      )
-    )
-  } catch (error) {
-    return left(
-      error instanceof Error
-        ? error
-        : typeof error === "string"
-        ? new Error(error)
-        : new Error(`Error evaluating polynomial ${js(p)} using value ${js(p.values)}`)
-    )
+export const transformToComplete = (p: Polynomial): Polynomial => {
+  if (p.degree > 9) throw new Error(`Degree ${p.degree} is too big (max allowed is 9)`)
+  if (p.dimension > 5) throw new Error(`Dimension ${p.dimension} is too big (max allowed is 5)`)
+  return {
+    ...p,
+    terms: makeExponentsArray(p.dimension, p.degree).map(exponents => ({
+      coefficient: undefined,
+      exponents,
+    })),
   }
 }
 
-export const makeEitherlyEvaluator: MakeEitherlyEvaluatorFunction = polynomial => values =>
-  pipe(
-    addValues(polynomial, values),
-    chain(hasValues),
-    chain(exponentsDimensionOk),
-    chain(exponentsDegreeOk),
-    chain(evaluate)
-  )
-export const makeEvaluator: MakeEvaluatorFunction = p => x =>
-  pipe(x, makeEitherlyEvaluator(p), fold(thrower, identity))
-//#endregion
+export const make = (dimension: number, degree: number): Polynomial =>
+  transformToComplete({
+    dimension,
+    degree,
+    terms: [],
+  })
 
-//#region Transform to complete
-
-export const eitherlyTransformToComplete = (p: Polynomial): Either<Error, Polynomial> => {
-  return p.degree > 9
-    ? left(new Error(`Degree ${p.degree} is too big (max allowed is 9)`))
-    : p.dimension > 5
-    ? left(new Error(`Dimension ${p.dimension} is too big (max allowed is 5)`))
-    : right({
-        ...p,
-        terms: makeExponentsArray(p.dimension, p.degree).map(exponents => ({
-          coefficient: 1,
-          exponents,
-        })),
-      })
+const validateFromPoints = (p: Polynomial, points: Matrix) => {
+  if (points.rows < p.terms.length) {
+    throw new Error(`Under-determinated, not enough points, we need at least ${p.terms.length}`)
+  }
 }
-export const transformToComplete = (p: Polynomial): Polynomial =>
-  pipe(p, eitherlyTransformToComplete, fold(thrower, identity))
+export const makeFromPoints = (degree: number, D: Matrix): Polynomial => {
+  const dimension = D.cols - 1 // last col is the values
+  const p = make(dimension, degree)
 
-//#endregion
+  validateFromPoints(p, D)
 
-//#region Printing
+  let A = makeEmptyMatrix()
+  const b = tr(row(D.cols - 1, tr(D)))
+  for (let i = 0; i < D.rows; ++i) {
+    const rowArray = []
+    for (let j = 0; j < p.terms.length; ++j) {
+      let element = 1
+      for (let k = 0; k < p.terms[j].exponents.length; ++k) {
+        const variableValue = get(D,i,k)
+        const exponent = p.terms[j].exponents[k]
+        element *= variableValue**exponent
+      }
+      rowArray.push(element)
+    }
+    const rowVector = makeRowVector(p.terms.length, rowArray)
+    A = appendRow(A, rowVector)
+  }
+  const x = solve(A,b)
+  return {...p, terms:p.terms.map((term,i)=>({...term, coefficient: get(x,i)}))}
+}
 
-export const eitherlyToLatexString = (p: Polynomial): Either<Error, string> => {
-  const mayBeSubindex = (index: number, degree: number): string =>
-    degree > 1 ? `_${index + 1}` : ""
+const validatePolynomial = (p: Polynomial) => {
+  p.terms.forEach((term, index) => {
+    if (term.exponents.length !== p.dimension) {
+      throw `The term #${index + 1} has ${term.exponents.length} variables but it must have ${
+        p.dimension
+      }`
+    }
+    const exponentsDegreeOk =
+      Math.max(
+        ...p.terms
+          .map(term => term.exponents)
+          .map(xs => xs.reduce((sum, another) => sum + another, 0))
+      ) <= p.degree
+    if (!exponentsDegreeOk)
+      throw new Error(`${js(p)}: terms degree is greater than polynomial degree ${p.degree}`)
+  }, 0)
+}
 
-  const mayBeExponent = (exponent: number): string => (exponent > 1 ? `^${exponent}` : ``)
+const validateEvaluablePolynomial = (p: Polynomial) => {
+  if (p.terms.some(term => typeof term.coefficient === "undefined"))
+    throw new Error(`Some term has uninitialized coefficient`)
+}
+
+export const evaluate = (p: Polynomial, values: Matrix): number => {
+  const evalTerm = (t: Term, values: Matrix) =>
+    (t.coefficient || 0) * t.exponents.reduce((a, x, i) => a * values.data[i] ** x, 1)
+  const evalPolynomial = (p: Polynomial) =>
+    p.terms.reduce((sum, term) => sum + evalTerm(term, values), 0)
+
+  validatePolynomial(p)
+  validateEvaluablePolynomial(p)
+
+  return evalPolynomial(p)
+}
+
+export const toLatexString = (p: Polynomial): string => {
+  const toLatexSubindex = (i: number) =>
+    i
+      .toString()
+      .split("")
+      .map(digit => `_${digit}`)
+      .join("")
+
+  const mayBeSubindex = (index: number, degree: number) => (degree > 1 ? `_${index + 1}` : "")
+
+  const mayBeExponent = (exponent: number) => (exponent > 1 ? `^${exponent}` : ``)
 
   const factor = (index: number, exponent: number, degree: number): string =>
     exponent > 0 ? `x${mayBeSubindex(index, degree)}${mayBeExponent(exponent)}` : ``
 
-  return right(
-    p.terms.reduce(
-      (latex: string, term: Term, index: number) =>
-        `${latex}${index > 0 ? " + " : ""}${
-          term.coefficient !== 1 || term.exponents.reduce((a, b) => a + b) === 0
-            ? term.coefficient
-            : ""
-        }${term.exponents.reduce(
-          (factors: string, exponent: number, index: number): string =>
-            factors + factor(index, exponent, p.degree),
-          ""
-        )}`,
-      ""
-    )
+  return p.terms.reduce(
+    (latex: string, term: Term, index: number) =>
+      `${latex}${index > 0 ? " + " : ""}${
+        term.coefficient !== 1 || term.exponents.reduce((a, b) => a + b) === 0
+          ? term.coefficient || `a${toLatexSubindex(p.terms.length - 1 - index)}`
+          : ""
+      }${term.exponents.reduce(
+        (factors: string, exponent: number, index: number): string =>
+          factors + factor(index, exponent, p.degree),
+        ""
+      )}`,
+    ""
   )
 }
-export const toLatexString = (p: Polynomial): string =>
-  pipe(p, eitherlyToLatexString, fold(thrower, identity))
-
-//#endregion
