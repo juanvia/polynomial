@@ -7,7 +7,9 @@ import {
   row,
   makeRowVector,
   tr,
-  solve,
+  qr,
+  backSubstitution,
+  mul,
 } from "@juanvia/matrix"
 
 const js = JSON.stringify
@@ -48,13 +50,21 @@ const validateFromPoints = (p: Polynomial, points: Matrix) => {
     throw new Error(`Under-determinated, not enough points, we need at least ${p.terms.length}`)
   }
 }
-export const makeFromPoints = (degree: number, D: Matrix, rangeDimension? = 1): Polynomial => {
-  // Generate from dimension (D.cols-1, because last col of D is the values), and degree
-  const p = make(D.cols - 1, degree)
+export const makeFromPoints = (
+  degree: number,
+  D: Matrix,
+  rangeDimension = 1
+): Array<Polynomial> => {
+  // Generate from dimension D.cols-rangeDimension, because last cols of D is the values), and degree.
+  const p = make(D.cols - rangeDimension, degree)
   validateFromPoints(p, D)
 
-  // The b in Ax=b
-  const b = tr(row(D.cols - 1, tr(D)))
+  // The b in Ax=B
+  let B = makeEmptyMatrix()
+  for (let i = -rangeDimension; i < 0; ++i) {
+    B = appendRow(B, row(D.cols + i, tr(D)))
+  }
+  B = tr(B)
 
   // The A in Ax=b
   let A = makeEmptyMatrix()
@@ -72,11 +82,19 @@ export const makeFromPoints = (degree: number, D: Matrix, rangeDimension? = 1): 
     A = appendRow(A, makeRowVector(p.terms.length, rowArray))
   }
 
-  // The x in Ax=b
-  const x = solve(A, b)
+  // The X in Ax=B
+  // const x = solve(A, B)
 
-  // returns the Polynomial p with the coefficients updated from the calculated x
-  return { ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: get(x, i) })) }
+  const [Q, R] = qr(A)
+  const trB = tr(B)
+  const trQ = tr(Q)
+  const ps: Array<Polynomial> = []
+  for (let i = 0; i < B.cols; ++i) {
+    const b = tr(row(i, trB))
+    const x = backSubstitution(R, mul(trQ, b))
+    ps.push({ ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: get(x, i) })) })
+  }
+  return ps
 }
 
 const validatePolynomial = (p: Polynomial) => {

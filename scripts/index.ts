@@ -23,12 +23,12 @@ import { makeMatrix } from "@juanvia/matrix"
 import { makeFromPoints, toLatexString } from "../src"
 const D=makeMatrix(6,2,[2,5,5,5,7,8,11,7,14,9,18,7])
 
-const p1=makeFromPoints(1,D)
+const p1=makeFromPoints(1,D)[0]
 console.log(toLatexString(p1)) // renders:
                                //   0.17183098591549267x 
                                // + 5.200938967136154
 
-const p2=makeFromPoints(2,D)
+const p2=makeFromPoints(2,D)[0]
 console.log(toLatexString(p2)) // renders:
                                //  -0.02820496411306621x_1^2 
                                // + 0.7363275211924957x_1 
