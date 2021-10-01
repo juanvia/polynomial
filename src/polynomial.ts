@@ -1,5 +1,14 @@
 import { makeExponentsArray } from "./exponents"
-import { Matrix, makeEmptyMatrix, appendRow, get, row, makeRowVector, tr, solve } from "@juanvia/matrix"
+import {
+  Matrix,
+  makeEmptyMatrix,
+  appendRow,
+  get,
+  row,
+  makeRowVector,
+  tr,
+  solve,
+} from "@juanvia/matrix"
 
 const js = JSON.stringify
 
@@ -39,30 +48,35 @@ const validateFromPoints = (p: Polynomial, points: Matrix) => {
     throw new Error(`Under-determinated, not enough points, we need at least ${p.terms.length}`)
   }
 }
-export const makeFromPoints = (degree: number, D: Matrix): Polynomial => {
-  const dimension = D.cols - 1 // last col is the values
-  const p = make(dimension, degree)
-
+export const makeFromPoints = (degree: number, D: Matrix, rangeDimension? = 1): Polynomial => {
+  // Generate from dimension (D.cols-1, because last col of D is the values), and degree
+  const p = make(D.cols - 1, degree)
   validateFromPoints(p, D)
 
-  let A = makeEmptyMatrix()
+  // The b in Ax=b
   const b = tr(row(D.cols - 1, tr(D)))
+
+  // The A in Ax=b
+  let A = makeEmptyMatrix()
   for (let i = 0; i < D.rows; ++i) {
     const rowArray = []
     for (let j = 0; j < p.terms.length; ++j) {
       let element = 1
       for (let k = 0; k < p.terms[j].exponents.length; ++k) {
-        const variableValue = get(D,i,k)
+        const variableValue = get(D, i, k)
         const exponent = p.terms[j].exponents[k]
-        element *= variableValue**exponent
+        element *= variableValue ** exponent
       }
       rowArray.push(element)
     }
-    const rowVector = makeRowVector(p.terms.length, rowArray)
-    A = appendRow(A, rowVector)
+    A = appendRow(A, makeRowVector(p.terms.length, rowArray))
   }
-  const x = solve(A,b)
-  return {...p, terms:p.terms.map((term,i)=>({...term, coefficient: get(x,i)}))}
+
+  // The x in Ax=b
+  const x = solve(A, b)
+
+  // returns the Polynomial p with the coefficients updated from the calculated x
+  return { ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: get(x, i) })) }
 }
 
 const validatePolynomial = (p: Polynomial) => {
@@ -83,12 +97,12 @@ const validatePolynomial = (p: Polynomial) => {
   }, 0)
 }
 
-const validateEvaluablePolynomial = (p: Polynomial) => {
-  if (p.terms.some(term => typeof term.coefficient === "undefined"))
-    throw new Error(`Some term has uninitialized coefficient`)
-}
-
 export const evaluate = (p: Polynomial, values: Matrix): number => {
+  const validateEvaluablePolynomial = (p: Polynomial) => {
+    if (p.terms.some(term => typeof term.coefficient === "undefined"))
+      throw new Error(`Some term has uninitialized coefficient`)
+  }
+
   const evalTerm = (t: Term, values: Matrix) =>
     (t.coefficient || 0) * t.exponents.reduce((a, x, i) => a * values.data[i] ** x, 1)
   const evalPolynomial = (p: Polynomial) =>
@@ -108,12 +122,12 @@ export const toLatexString = (p: Polynomial): string => {
       .map(digit => `_${digit}`)
       .join("")
 
-  const mayBeSubindex = (index: number, degree: number) => (degree > 1 ? `_${index + 1}` : "")
+  const mayBeSubindex = (index: number, p: Polynomial) => (p.dimension > 1 ? `_${index + 1}` : "")
 
   const mayBeExponent = (exponent: number) => (exponent > 1 ? `^${exponent}` : ``)
 
-  const factor = (index: number, exponent: number, degree: number): string =>
-    exponent > 0 ? `x${mayBeSubindex(index, degree)}${mayBeExponent(exponent)}` : ``
+  const factor = (index: number, exponent: number, p: Polynomial): string =>
+    exponent > 0 ? `x${mayBeSubindex(index, p)}${mayBeExponent(exponent)}` : ``
 
   return p.terms.reduce(
     (latex: string, term: Term, index: number) =>
@@ -123,7 +137,7 @@ export const toLatexString = (p: Polynomial): string => {
           : ""
       }${term.exponents.reduce(
         (factors: string, exponent: number, index: number): string =>
-          factors + factor(index, exponent, p.degree),
+          factors + factor(index, exponent, p),
         ""
       )}`,
     ""
