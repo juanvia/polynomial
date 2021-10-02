@@ -47,9 +47,12 @@ export const make = (dimension: number, degree: number): Polynomial =>
 
 const validateFromPoints = (p: Polynomial, points: Matrix) => {
   if (points.rows < p.terms.length) {
+    // console.log({ p: JSON.stringify(p), points })
     throw new Error(`Under-determinated, not enough points, we need at least ${p.terms.length}`)
   }
 }
+const fixr = (x: number): number => (Math.abs(x - Math.round(x)) < 1e-10 ? Math.round(x) : x)
+
 export const makeFromPoints = (
   degree: number,
   D: Matrix,
@@ -86,13 +89,15 @@ export const makeFromPoints = (
   // const x = solve(A, B)
 
   const [Q, R] = qr(A)
+  //console.log({ A, B, p: js(p), Q, R })
   const trB = tr(B)
   const trQ = tr(Q)
   const ps: Array<Polynomial> = []
+  //console.log({ Q, R, trB, trQ, ps: js(ps) })
   for (let i = 0; i < B.cols; ++i) {
     const b = tr(row(i, trB))
     const x = backSubstitution(R, mul(trQ, b))
-    ps.push({ ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: get(x, i) })) })
+    ps.push({ ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: fixr(get(x, i)) })) })
   }
   return ps
 }
@@ -123,6 +128,7 @@ export const evaluate = (p: Polynomial, values: Matrix): number => {
 
   const evalTerm = (t: Term, values: Matrix) =>
     (t.coefficient || 0) * t.exponents.reduce((a, x, i) => a * values.data[i] ** x, 1)
+
   const evalPolynomial = (p: Polynomial) =>
     p.terms.reduce((sum, term) => sum + evalTerm(term, values), 0)
 
@@ -149,15 +155,19 @@ export const toLatexString = (p: Polynomial): string => {
 
   return p.terms.reduce(
     (latex: string, term: Term, index: number) =>
-      `${latex}${index > 0 ? " + " : ""}${
-        term.coefficient !== 1 || term.exponents.reduce((a, b) => a + b) === 0
-          ? term.coefficient || `a${toLatexSubindex(p.terms.length - 1 - index)}`
-          : ""
-      }${term.exponents.reduce(
-        (factors: string, exponent: number, index: number): string =>
-          factors + factor(index, exponent, p),
-        ""
-      )}`,
+      typeof term.coefficient !== "undefined" && term.coefficient !== 0
+        ? `${latex}${latex !== "" ? " + " : ""}${
+            term.coefficient !== 1 || term.exponents.reduce((a, b) => a + b) === 0
+              ? typeof term.coefficient === "undefined"
+                ? `a${toLatexSubindex(p.terms.length - 1 - index)}`
+                : term.coefficient
+              : ""
+          }${term.exponents.reduce(
+            (factors: string, exponent: number, index: number): string =>
+              factors + factor(index, exponent, p),
+            ""
+          )}`
+        : "",
     ""
   )
 }
