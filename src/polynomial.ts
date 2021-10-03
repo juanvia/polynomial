@@ -10,6 +10,8 @@ import {
   qr,
   backSubstitution,
   mul,
+  appendColumn,
+  column,
 } from "@juanvia/matrix"
 
 const js = JSON.stringify
@@ -26,20 +28,19 @@ export type Polynomial = {
   coefficientNames?: Array<string>
 }
 
-
 /**
  * Returns an empty Polynomial. You give two numbers, the dimension and the degree.
- * 
+ *
  * The _dimension_ is the number of variables it contains.
- * 
- * In mathematics, the _degree_ of a polynomial is the highest of the degrees 
- * of the polynomial's monomials (individual terms) with non-zero coefficients. 
- * The degree of a term is the sum of the exponents of the variables that appear in it, 
+ *
+ * In mathematics, the _degree_ of a polynomial is the highest of the degrees
+ * of the polynomial's monomials (individual terms) with non-zero coefficients.
+ * The degree of a term is the sum of the exponents of the variables that appear in it,
  * and thus is a non-negative integer. [(Wikipedia)](https://en.wikipedia.org/wiki/Degree_of_a_polynomial)
- * 
+ *
  * The polynomial returned is not _well formed_. After this you have work to do (fill the terms).
- * 
- * @param  {number} dimension Or how many variables it uses 
+ *
+ * @param  {number} dimension Or how many variables it uses
  * @param  {number} degree Max of the term's exponents sum you can find inspecting each of them.
  * @returns Polynomial
  * @example
@@ -50,11 +51,11 @@ export const makeEmptyPolynomial = (dimension: number, degree: number): Polynomi
   terms: [],
 })
 /**
- * From the given Polynomial returns another with its terms replaced. The new ones form 
+ * From the given Polynomial returns another with its terms replaced. The new ones form
  * a [complete homogeneous symmetric polynomial](https://mathoverflow.net/questions/225953/number-of-polynomial-terms-for-certain-degree-and-certain-number-of-variables)
  * plus an independent term. The number of terms is the combinatorial number _nCr_ where _n=dimension+degree_ and _r=degree_
  * @param  {Polynomial} p
- * @returns Polynomial 
+ * @returns Polynomial
  */
 export const populate = (p: Polynomial): Polynomial => {
   if (p.degree > 9) throw new Error(`Degree ${p.degree} is too big (max allowed is 9)`)
@@ -68,7 +69,7 @@ export const populate = (p: Polynomial): Polynomial => {
   }
 }
 /**
- * Makes an empty Polynomial and return it populated with the terms needed to form 
+ * Makes an empty Polynomial and return it populated with the terms needed to form
  * a [complete homogeneous symmetric polynomial](https://mathoverflow.net/questions/225953/number-of-polynomial-terms-for-certain-degree-and-certain-number-of-variables)
  * plus an independent term.
  * @param  {number} dimension
@@ -114,11 +115,10 @@ export const makeFromPoints = (
   // The B in AX=B
   let B = makeEmptyMatrix()
   for (let i = -rangeDimension; i < 0; ++i) {
-    B = appendRow(B, row(D.cols + i, tr(D)))
+    B = appendColumn(B, column(D.cols + i, D))
   }
-  B = tr(B)
 
-  // The A in Ax=b
+  // The A in AX=B
   let A = makeEmptyMatrix()
   for (let i = 0; i < D.rows; ++i) {
     const rowArray = []
@@ -134,15 +134,14 @@ export const makeFromPoints = (
     A = appendRow(A, makeRowVector(p.terms.length, rowArray))
   }
 
-  // The X in Ax=B
+  // The X in AX=B
   // const X = solve(A, B)
 
   const [Q, R] = qr(A)
-  const trB = tr(B)
   const trQ = tr(Q)
   const ps: Array<Polynomial> = []
   for (let i = 0; i < B.cols; ++i) {
-    const b = tr(row(i, trB))
+    const b = column(i, B)
     const x = backSubstitution(R, mul(trQ, b))
     ps.push({ ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: stick(get(x, i)) })) })
   }
