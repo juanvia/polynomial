@@ -26,7 +26,37 @@ export type Polynomial = {
   coefficientNames?: Array<string>
 }
 
-export const transformToComplete = (p: Polynomial): Polynomial => {
+
+/**
+ * Returns an empty Polynomial. You give two numbers, the dimension and the degree.
+ * 
+ * The _dimension_ is the number of variables it contains.
+ * 
+ * In mathematics, the _degree_ of a polynomial is the highest of the degrees 
+ * of the polynomial's monomials (individual terms) with non-zero coefficients. 
+ * The degree of a term is the sum of the exponents of the variables that appear in it, 
+ * and thus is a non-negative integer. [(Wikipedia)](https://en.wikipedia.org/wiki/Degree_of_a_polynomial)
+ * 
+ * The polynomial returned is not _well formed_. After this you have work to do (fill the terms).
+ * 
+ * @param  {number} dimension Or how many variables it uses 
+ * @param  {number} degree Max of the term's exponents sum you can find inspecting each of them.
+ * @returns Polynomial
+ * @example
+ */
+export const makeEmptyPolynomial = (dimension: number, degree: number): Polynomial => ({
+  dimension,
+  degree,
+  terms: [],
+})
+/**
+ * From the given Polynomial returns another with its terms replaced. The new ones form 
+ * a [complete homogeneous symmetric polynomial](https://mathoverflow.net/questions/225953/number-of-polynomial-terms-for-certain-degree-and-certain-number-of-variables)
+ * plus an independent term. The number of terms is the combinatorial number _nCr_ where _n=dimension+degree_ and _r=degree_
+ * @param  {Polynomial} p
+ * @returns Polynomial 
+ */
+export const populate = (p: Polynomial): Polynomial => {
   if (p.degree > 9) throw new Error(`Degree ${p.degree} is too big (max allowed is 9)`)
   if (p.dimension > 5) throw new Error(`Dimension ${p.dimension} is too big (max allowed is 5)`)
   return {
@@ -37,32 +67,51 @@ export const transformToComplete = (p: Polynomial): Polynomial => {
     })),
   }
 }
-
-export const make = (dimension: number, degree: number): Polynomial =>
-  transformToComplete({
-    dimension,
-    degree,
-    terms: [],
-  })
-
+/**
+ * Makes an empty Polynomial and return it populated with the terms needed to form 
+ * a [complete homogeneous symmetric polynomial](https://mathoverflow.net/questions/225953/number-of-polynomial-terms-for-certain-degree-and-certain-number-of-variables)
+ * plus an independent term.
+ * @param  {number} dimension
+ * @param  {number} degree
+ * @returns Polynomial
+ */
+export const makePolynomial = (dimension: number, degree: number): Polynomial =>
+  populate(makeEmptyPolynomial(dimension, degree))
+/**
+ * Verify that the given points were enough to calculate the coefficients of the
+ * given Polynomial.
+ * @param  {Polynomial} p
+ * @param  {Matrix} points
+ * @throws an Error if the points Matrix has less rows than the polynomial terms.
+ */
 const validateFromPoints = (p: Polynomial, points: Matrix) => {
   if (points.rows < p.terms.length) {
-    // console.log({ p: JSON.stringify(p), points })
     throw new Error(`Under-determinated, not enough points, we need at least ${p.terms.length}`)
   }
 }
-const fixr = (x: number): number => (Math.abs(x - Math.round(x)) < 1e-10 ? Math.round(x) : x)
-
+/**
+ * Sticks a number with an integer if it's close enough and returns that integer.
+ * 1/10 000 000 000 of closing __IS__ enough, you can't complain.
+ * @param  {number} x
+ * @returns number
+ */
+const stick = (x: number): number => (Math.abs(x - Math.round(x)) < 1e-10 ? Math.round(x) : x)
+/**
+ * @param  {number} degree
+ * @param  {Matrix} D
+ * @param  {} rangeDimension=1
+ * @returns Array
+ */
 export const makeFromPoints = (
   degree: number,
   D: Matrix,
   rangeDimension = 1
 ): Array<Polynomial> => {
   // Generate from dimension D.cols-rangeDimension, because last cols of D is the values), and degree.
-  const p = make(D.cols - rangeDimension, degree)
+  const p = makePolynomial(D.cols - rangeDimension, degree)
   validateFromPoints(p, D)
 
-  // The b in Ax=B
+  // The B in AX=B
   let B = makeEmptyMatrix()
   for (let i = -rangeDimension; i < 0; ++i) {
     B = appendRow(B, row(D.cols + i, tr(D)))
@@ -86,18 +135,16 @@ export const makeFromPoints = (
   }
 
   // The X in Ax=B
-  // const x = solve(A, B)
+  // const X = solve(A, B)
 
   const [Q, R] = qr(A)
-  //console.log({ A, B, p: js(p), Q, R })
   const trB = tr(B)
   const trQ = tr(Q)
   const ps: Array<Polynomial> = []
-  //console.log({ Q, R, trB, trQ, ps: js(ps) })
   for (let i = 0; i < B.cols; ++i) {
     const b = tr(row(i, trB))
     const x = backSubstitution(R, mul(trQ, b))
-    ps.push({ ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: fixr(get(x, i)) })) })
+    ps.push({ ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: stick(get(x, i)) })) })
   }
   return ps
 }
