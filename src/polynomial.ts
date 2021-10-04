@@ -9,9 +9,7 @@ import {
   qr,
   backSubstitution,
   mul,
-  appendColumn,
   column,
-  print,
 } from "@juanvia/matrix"
 
 const js = JSON.stringify
@@ -93,7 +91,7 @@ const validateFromPoints = (p: Polynomial, points: Matrix) => {
 export const clone = ({ dimension, degree, terms }: Polynomial): Polynomial => ({
   dimension,
   degree,
-  terms: terms.map(term=>({...term})),
+  terms: terms.map(term => ({ ...term, exponents: [...term.exponents] })),
 })
 /**
  * Sticks a number with an integer if it's close enough and returns that integer.
@@ -117,7 +115,8 @@ export const makeFromPoints = (
   const templatePolynomial = makePolynomial(D.cols - rangeDimension, degree)
   validateFromPoints(templatePolynomial, D)
 
-  // STEP 1. Calculate the A in the system of linear equations AX=B
+  // STEP 1. Calculate A, the matrix with rows formed by evaluate the terms with
+  //         values from the first columns of the data matrix D
   let A = makeEmptyMatrix()
   for (let i = 0; i < D.rows; ++i) {
     const rowArray = []
@@ -133,37 +132,36 @@ export const makeFromPoints = (
     A = appendRow(A, makeRowVector(templatePolynomial.terms.length, rowArray))
   }
 
-  // // STEP 2. Calculate the B in the system of linear equations AX=B
-  // let B = makeEmptyMatrix()
-  // for (let i = -rangeDimension; i < 0; ++i) {
-  //   B = appendColumn(B, column(D.cols + i, D))
-  // }
-  
-  // STEP 3. Calculate the solution X in the system of linear equations AX=B
-  // column by column x containing the coefficients. Use them to 
-  // create one by one the polynomials we are looking for
+  // STEP 2. Generate the polynomials *one by one* solving the equation Ax=b for each dependent variable
+  //         - The matrix 'A' in the equation has been created in the previous step.
+  //         - The vector 'b' comes from the last column (if 'rangeDimension' == 1) or columns of 'D', *one by one*
+  //         - The vector 'x', the incognita, contains the coefficients of the correspondent polynomial terms
+  //         The solution of the 'Ax=b' equation is achieved using the QR decomposition
+  //         Remember: A=Q.R -> A.x=b === Q.R.x=b -> trQ.Q.R.x=trQ.b -> R.x=trQ.b -> R.x=_b 
+  //         In the process the vector '_b' is created multiplying the traspose of 'Q' by that 'b' (the column of 'D')
+  //         With '_b' and 'R' we obtain the coefficients 'x' by back substitution.
+  //         With 'x' calculated we updated the coefficients of a fresh copy of the early generated template polynomial
+  //         And then add this new polynomial to the list.
+
   const [Q, R] = qr(A)
   const trQ = tr(Q)
   const thePolynomials: Array<Polynomial> = []
 
   for (let j = 0; j < rangeDimension; ++j) {
-    //const b = column(j, B)
-    //const x = backSubstitution(R, mul(trQ, b))
-    const b = mul(trQ, column(D.cols-rangeDimension+j,D))
-    const x = backSubstitution(R, b)
+    const b = column(D.cols - rangeDimension + j, D)
+    const _b = mul(trQ, b)
+    const x = backSubstitution(R, _b)
 
     const newPolynomial = clone(templatePolynomial)
     for (let i = 0; i < newPolynomial.terms.length; ++i) {
       newPolynomial.terms[i].coefficient = stick(get(x, i))
     }
     thePolynomials.push(newPolynomial)
-
   }
 
   // now the list "thePolynomials" are done
 
   return thePolynomials
-
 }
 
 const validatePolynomial = (p: Polynomial) => {
