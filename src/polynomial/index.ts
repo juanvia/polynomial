@@ -1,3 +1,5 @@
+import { Polynomial, Term } from "./types"
+export { Polynomial, Term }
 import { makeExponentsArray } from "./exponents"
 import {
   Matrix,
@@ -14,17 +16,6 @@ import {
 
 const js = JSON.stringify
 
-export type Term = {
-  coefficient: number | undefined
-  exponents: Array<number>
-}
-
-export type Polynomial = {
-  dimension: number
-  degree: number
-  terms: Array<Term>
-  coefficientNames?: Array<string>
-}
 
 /**
  * Returns an empty Polynomial. You give two numbers, the dimension and the degree.

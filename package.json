@@ -1,22 +1,22 @@
 {
-  "name": "some",
-  "version": "1.0.0",
-  "description": "Palette-automation follow-up",
+  "name": "@juanvia/polynomial",
+  "version": "0.1.0",
+  "description": "A working model for polynomials",
   "main": "./lib/index.js",
-  "bin": {
-    "some": "./lib/index.js"
-  },
+  "types": "lib/index.d.ts",
+  "author": "Juan V. Vía <juan.via@gmail.com>",
+  "license": "MIT",
+  "files": [
+    "lib/*",
+    "lib/polynomial/*"
+  ],
   "scripts": {
     "start": "nodemon --exec 'ts-node' scripts/index.ts --watch './**/*.ts'",
     "create": "yarn build && yarn test",
     "build": "tsc -p .",
-    "local": "sudo npm i -g && some",
     "refresh": "rm -rf ./node_modules ./yarn.lock && yarn",
     "test": "ts-node test"
   },
-  "author": "Juan V. Vía",
-  "license": "MIT",
-  "private": true,
   "dependencies": {
     "@juanvia/matrix": "0.1.4",
     "chalk": "^4.1.2",
