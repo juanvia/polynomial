@@ -11,6 +11,7 @@ import {
   mul,
   appendColumn,
   column,
+  print,
 } from "@juanvia/matrix"
 
 const js = JSON.stringify
@@ -92,7 +93,7 @@ const validateFromPoints = (p: Polynomial, points: Matrix) => {
 export const clone = ({ dimension, degree, terms }: Polynomial): Polynomial => ({
   dimension,
   degree,
-  terms: [...terms],
+  terms: terms.map(term=>({...term})),
 })
 /**
  * Sticks a number with an integer if it's close enough and returns that integer.
@@ -132,11 +133,11 @@ export const makeFromPoints = (
     A = appendRow(A, makeRowVector(templatePolynomial.terms.length, rowArray))
   }
 
-  // STEP 2. Calculate the B in the system of linear equations AX=B
-  let B = makeEmptyMatrix()
-  for (let i = -rangeDimension; i < 0; ++i) {
-    B = appendColumn(B, column(D.cols + i, D))
-  }
+  // // STEP 2. Calculate the B in the system of linear equations AX=B
+  // let B = makeEmptyMatrix()
+  // for (let i = -rangeDimension; i < 0; ++i) {
+  //   B = appendColumn(B, column(D.cols + i, D))
+  // }
   
   // STEP 3. Calculate the solution X in the system of linear equations AX=B
   // column by column x containing the coefficients. Use them to 
@@ -144,9 +145,12 @@ export const makeFromPoints = (
   const [Q, R] = qr(A)
   const trQ = tr(Q)
   const thePolynomials: Array<Polynomial> = []
-  for (let j = 0; j < B.cols; ++j) {
-    const b = column(j, B)
-    const x = backSubstitution(R, mul(trQ, b))
+
+  for (let j = 0; j < rangeDimension; ++j) {
+    //const b = column(j, B)
+    //const x = backSubstitution(R, mul(trQ, b))
+    const b = mul(trQ, column(D.cols-rangeDimension+j,D))
+    const x = backSubstitution(R, b)
 
     const newPolynomial = clone(templatePolynomial)
     for (let i = 0; i < newPolynomial.terms.length; ++i) {
