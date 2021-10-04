@@ -1,2 +1,0 @@
-//#region Types
-//#endregion
