@@ -4,7 +4,6 @@ import {
   makeEmptyMatrix,
   appendRow,
   get,
-  row,
   makeRowVector,
   tr,
   qr,
@@ -90,9 +89,14 @@ const validateFromPoints = (p: Polynomial, points: Matrix) => {
     throw new Error(`Under-determinated, not enough points, we need at least ${p.terms.length}`)
   }
 }
+export const clone = ({ dimension, degree, terms }: Polynomial): Polynomial => ({
+  dimension,
+  degree,
+  terms: [...terms],
+})
 /**
  * Sticks a number with an integer if it's close enough and returns that integer.
- * 1/10 000 000 000 of closing __IS__ enough, you can't complain.
+ * 1/10 000 000 000 close _is_ enough, you can't complain.
  * @param  {number} x
  * @returns number
  */
@@ -109,43 +113,53 @@ export const makeFromPoints = (
   rangeDimension = 1
 ): Array<Polynomial> => {
   // Generate from dimension D.cols-rangeDimension, because last cols of D is the values), and degree.
-  const p = makePolynomial(D.cols - rangeDimension, degree)
-  validateFromPoints(p, D)
+  const templatePolynomial = makePolynomial(D.cols - rangeDimension, degree)
+  validateFromPoints(templatePolynomial, D)
 
-  // The B in AX=B
-  let B = makeEmptyMatrix()
-  for (let i = -rangeDimension; i < 0; ++i) {
-    B = appendColumn(B, column(D.cols + i, D))
-  }
-
-  // The A in AX=B
+  // STEP 1. Calculate the A in the system of linear equations AX=B
   let A = makeEmptyMatrix()
   for (let i = 0; i < D.rows; ++i) {
     const rowArray = []
-    for (let j = 0; j < p.terms.length; ++j) {
+    for (let j = 0; j < templatePolynomial.terms.length; ++j) {
       let element = 1
-      for (let k = 0; k < p.terms[j].exponents.length; ++k) {
+      for (let k = 0; k < templatePolynomial.terms[j].exponents.length; ++k) {
         const variableValue = get(D, i, k)
-        const exponent = p.terms[j].exponents[k]
+        const exponent = templatePolynomial.terms[j].exponents[k]
         element *= variableValue ** exponent
       }
       rowArray.push(element)
     }
-    A = appendRow(A, makeRowVector(p.terms.length, rowArray))
+    A = appendRow(A, makeRowVector(templatePolynomial.terms.length, rowArray))
   }
 
-  // The X in AX=B
-  // const X = solve(A, B)
-
+  // STEP 2. Calculate the B in the system of linear equations AX=B
+  let B = makeEmptyMatrix()
+  for (let i = -rangeDimension; i < 0; ++i) {
+    B = appendColumn(B, column(D.cols + i, D))
+  }
+  
+  // STEP 3. Calculate the solution X in the system of linear equations AX=B
+  // column by column x containing the coefficients. Use them to 
+  // create one by one the polynomials we are looking for
   const [Q, R] = qr(A)
   const trQ = tr(Q)
-  const ps: Array<Polynomial> = []
-  for (let i = 0; i < B.cols; ++i) {
-    const b = column(i, B)
+  const thePolynomials: Array<Polynomial> = []
+  for (let j = 0; j < B.cols; ++j) {
+    const b = column(j, B)
     const x = backSubstitution(R, mul(trQ, b))
-    ps.push({ ...p, terms: p.terms.map((term, i) => ({ ...term, coefficient: stick(get(x, i)) })) })
+
+    const newPolynomial = clone(templatePolynomial)
+    for (let i = 0; i < newPolynomial.terms.length; ++i) {
+      newPolynomial.terms[i].coefficient = stick(get(x, i))
+    }
+    thePolynomials.push(newPolynomial)
+
   }
-  return ps
+
+  // now the list "thePolynomials" are done
+
+  return thePolynomials
+
 }
 
 const validatePolynomial = (p: Polynomial) => {
