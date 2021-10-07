@@ -16,7 +16,6 @@ import {
 
 const js = JSON.stringify
 
-
 /**
  * Returns an empty Polynomial. You give two numbers, the dimension and the degree.
  *
@@ -128,7 +127,7 @@ export const makeFromPoints = (
   //         - The vector 'b' comes from the last column (if 'rangeDimension' == 1) or columns of 'D', *one by one*
   //         - The vector 'x', the incognita, contains the coefficients of the correspondent polynomial terms
   //         The solution of the 'Ax=b' equation is achieved using the QR decomposition
-  //         Remember: A=Q.R -> A.x=b === Q.R.x=b -> trQ.Q.R.x=trQ.b -> R.x=trQ.b -> R.x=_b 
+  //         Remember: A=Q.R -> A.x=b === Q.R.x=b -> trQ.Q.R.x=trQ.b -> R.x=trQ.b -> R.x=_b
   //         In the process the vector '_b' is created multiplying the traspose of 'Q' by that 'b' (the column of 'D')
   //         With '_b' and 'R' we obtain the coefficients 'x' by back substitution.
   //         With 'x' calculated we updated the coefficients of a fresh copy of the early generated template polynomial
@@ -139,9 +138,10 @@ export const makeFromPoints = (
   const thePolynomials: Array<Polynomial> = []
 
   for (let j = 0; j < rangeDimension; ++j) {
-    const b = column(D.cols - rangeDimension + j, D)
-    const _b = mul(trQ, b)
-    const x = backSubstitution(R, _b)
+    // const b = column(D.cols - rangeDimension + j, D)
+    // const _b = mul(trQ, b)
+    // const x = backSubstitution(R, _b)
+    const x = backSubstitution(R, mul(trQ, column(D.cols - rangeDimension + j, D)))
 
     const newPolynomial = clone(templatePolynomial)
     for (let i = 0; i < newPolynomial.terms.length; ++i) {
@@ -150,7 +150,7 @@ export const makeFromPoints = (
     thePolynomials.push(newPolynomial)
   }
 
-  // now the list "thePolynomials" are done
+  // now the list "thePolynomials" is done
 
   return thePolynomials
 }
